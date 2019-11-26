@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: different-app-db
+  labels:
+    type: db
+    service: different-app
+    vendor: MongoLabs
+spec:
+  selector:
+    matchLabels:
+      type: db
+      service: different-app
+  template:
+    metadata:
+      labels:
+        type: db
+        service: different-app
+        vendor: MongoLabs
+    spec:
+      containers:
+      - name: db
+        image: mongo:3.3
+        ports:
+        - containerPort: 28017

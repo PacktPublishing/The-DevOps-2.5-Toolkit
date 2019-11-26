@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-demo-2-db
+spec:
+  selector:
+    matchLabels:
+      type: db
+      service: go-demo-2
+  template:
+    metadata:
+      labels:
+        type: db
+        service: go-demo-2
+        vendor: MongoLabs
+    spec:
+      containers:
+      - name: db
+        image: mongo:3.3
+        ports:
+        - containerPort: 28017
