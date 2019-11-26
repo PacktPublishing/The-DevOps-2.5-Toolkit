@@ -1,0 +1,19 @@
+---
+# Source: cluster-autoscaler/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: "aws-cluster-autoscaler"
+    app.kubernetes.io/name: "aws-cluster-autoscaler"
+    app.kubernetes.io/managed-by: "Tiller"
+    helm.sh/chart: "cluster-autoscaler-6.0.0"
+  name: aws-cluster-autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aws-cluster-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: aws-cluster-autoscaler
+    namespace: kube-system
