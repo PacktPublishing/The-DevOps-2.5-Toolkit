@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-toolkit
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      type: frontend
+      service: devops-toolkit
+  template:
+    metadata:
+      labels:
+        type: frontend
+        service: devops-toolkit
+    spec:
+      containers:
+      - name: frontend
+        image: vfarcic/devops-toolkit-series
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-toolkit
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+  selector:
+    type: frontend
+    service: devops-toolkit

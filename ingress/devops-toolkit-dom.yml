@@ -1,0 +1,51 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: devops-toolkit
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: devopstoolkitseries.com
+    http:
+      paths:
+      - backend:
+          serviceName: devops-toolkit
+          servicePort: 80
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-toolkit
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      type: frontend
+      service: devops-toolkit
+  template:
+    metadata:
+      labels:
+        type: frontend
+        service: devops-toolkit
+    spec:
+      containers:
+      - name: frontend
+        image: vfarcic/devops-toolkit-series
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-toolkit
+spec:
+  ports:
+  - port: 80
+  selector:
+    type: frontend
+    service: devops-toolkit
