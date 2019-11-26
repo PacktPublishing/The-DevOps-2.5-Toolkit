@@ -1,0 +1,31 @@
+{
+  "variables": {
+    "do_region": "nyc3",
+    "snapshot_name": "snapshot-kubernetes"
+  },
+  "builders": [{
+    "type": "digitalocean",
+    "image": "ubuntu-16-04-x64",
+    "region": "{{ user `do_region` }}",
+    "size": "512mb",
+	"ssh_username": "root",
+	"snapshot_name": "{{ user `snapshot_name` }}-{{ isotime \"2006-01-02\" }}"
+  }],
+  "provisioners": [{
+    "type": "shell",
+    "inline": [
+      "sudo apt-get clean",
+      "sudo apt-get update",
+      "sudo apt-get install -y apt-transport-https ca-certificates",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -",
+      "sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\"",
+      "sudo apt-get update",
+      "sudo apt-get install -y docker-ce=17.06.2~ce-0~ubuntu",
+      "curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add - ",
+      "sudo add-apt-repository \"deb http://apt.kubernetes.io/ kubernetes-xenial main\"",
+      "sudo apt-get update ",
+      "sudo apt-get install -y kubectl=1.9.7-00 kubeadm=1.9.7-00 kubelet=1.9.7-00 python-pip",
+      "pip install s3cmd"
+    ]
+  }]
+}
