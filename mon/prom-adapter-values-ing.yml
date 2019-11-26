@@ -1,0 +1,25 @@
+image:
+  tag: v0.5.0
+metricsRelistInterval: 90s
+prometheus:
+  url: http://prometheus-server.metrics.svc
+  port: 80
+rules:
+  default: false
+  custom:
+  - seriesQuery: 'nginx_ingress_controller_requests'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        ingress: {resource: "ingress"}
+    name:
+      as: "http_req_per_second"
+    metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[5m])) by (<<.GroupBy>>)'
+  - seriesQuery: 'nginx_ingress_controller_requests'
+    resources:
+      overrides:
+        namespace: {resource: "namespace"}
+        ingress: {resource: "ingress"}
+    name:
+      as: "http_req_per_second_per_replica"
+    metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[5m])) by (<<.GroupBy>>) / sum(label_join(kube_deployment_status_replicas, "ingress", ",", "deployment")) by (<<.GroupBy>>)'

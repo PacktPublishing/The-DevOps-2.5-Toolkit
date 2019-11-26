@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: go-demo-2
+  labels:
+    type: stack
+spec:
+  containers:
+  - name: db
+    image: mongo:3.3
+  - name: api
+    image: vfarcic/go-demo-2
+    env:
+    - name: DB
+      value: localhost

@@ -1,0 +1,194 @@
+server:
+  ingress:
+    enabled: true
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  resources:
+    limits:
+      cpu: 100m
+      memory: 1000Mi
+    requests:
+      cpu: 10m
+      memory: 500Mi
+alertmanager:
+  ingress:
+    enabled: true
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+    requests:
+      cpu: 5m
+      memory: 10Mi
+kubeStateMetrics:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 50Mi
+    requests:
+      cpu: 5m
+      memory: 25Mi
+nodeExporter:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+    requests:
+      cpu: 5m
+      memory: 10Mi
+pushgateway:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+    requests:
+      cpu: 5m
+      memory: 10Mi
+serverFiles:
+  alerts:
+    groups:
+    - name: latency
+      rules:
+      - alert: AppTooSlow
+        expr: sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{le="0.25"}[5m])) by (ingress) / sum(rate(nginx_ingress_controller_request_duration_seconds_count[5m])) by (ingress) < 0.95
+        labels:
+          severity: notify
+        annotations:
+          summary: Application is too slow
+          description: More then 5% of requests are slower than 0.25s
+      - alert: TooManyRequests
+        expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) / sum(label_join(kube_deployment_status_replicas, "ingress", ",", "deployment")) by (ingress) > 1
+        labels:
+          severity: notify
+        annotations:
+          summary: Too many requests
+          description: There is more than average of 1 requests per second per replica for at least one application
+    - name: nodes
+      rules:
+      - alert: TooManyNodes
+        expr: count(kube_node_info) > 3
+        for: 1m
+        labels:
+          severity: notify
+        annotations:
+          summary: Cluster increased
+          description: The number of the nodes in the cluster increased
+      - alert: TooFewNodes
+        expr: count(kube_node_info) < 1
+        for: 1m
+        labels:
+          severity: notify
+        annotations:
+          summary: Cluster decreased
+          description: The number of the nodes in the cluster decreased
+      - alert: NotEnoughCPU
+        expr: sum(rate(node_cpu_seconds_total{mode!="idle", mode!="iowait", mode!~"^(?:guest.*)$"}[5m])) / count(node_cpu_seconds_total{mode="system"}) > 0.9
+        for: 30m
+        labels:
+          severity: notify
+        annotations:
+          summary: There's not enough CPU
+          description: CPU usage of the cluster is above 90%
+      - alert: TooMuchCPURequested
+        expr: sum(kube_pod_container_resource_requests_cpu_cores) / sum(kube_node_status_allocatable_cpu_cores) > 0.9
+        for: 30m
+        labels:
+          severity: notify
+        annotations:
+          summary: There's not enough allocatable CPU
+          description: More than 90% of allocatable CPU is requested
+      - alert: NotEnoughMemory
+        expr: 1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) > 0.9
+        for: 30m
+        labels:
+          severity: notify
+        annotations:
+          summary: There's not enough memory
+          description: Memory usage of the cluster is above 90%
+      - alert: TooMuchMemoryRequested
+        expr: sum(kube_pod_container_resource_requests_memory_bytes) / sum(kube_node_status_allocatable_memory_bytes) > 0.9
+        for: 30m
+        labels:
+          severity: notify
+        annotations:
+          summary: There's not enough allocatable memory
+          description: More than 90% of allocatable memory is requested
+      - alert: TooMuchCPUAndMemory
+        expr: (sum(rate(node_cpu_seconds_total{mode!="idle", mode!="iowait", mode!~"^(?:guest.*)$"}[5m])) by (instance) / count(node_cpu_seconds_total{mode="system"}) by (instance)) < 0.5 and (1 - sum(node_memory_MemAvailable_bytes) by (instance) / sum(node_memory_MemTotal_bytes) by (instance)) < 0.5
+        for: 30m
+        labels:
+          severity: notify
+        annotations:
+          summary: Too much unused CPU and memory
+          description: Less than 50% of CPU and 50% of memory is used on at least one node
+    - name: errors
+      rules:
+      - alert: TooManyErrors
+        expr: sum(rate(nginx_ingress_controller_requests{status=~"5.."}[5m])) by (ingress) / sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) > 0.025
+        labels:
+          severity: error
+        annotations:
+          summary: Too many errors
+          description: At least one application produced more then 5% of error responses
+    - name: pods
+      rules:
+      - alert: ProblematicPods
+        expr: sum(kube_pod_status_phase{phase=~"Failed|Unknown|Pending"}) by (phase) > 0
+        for: 15m
+        labels:
+          severity: notify
+        annotations:
+          summary: At least one Pod could not run
+          description: At least one Pod is in a problematic phase
+      - alert: OldPods
+        expr: (time() - kube_pod_start_time{namespace!="kube-system"}) > (60 * 60 * 24 * 90)
+        labels:
+          severity: notify
+          frequency: low
+        annotations:
+          summary: Old Pods
+          description: At least one Pod has not been updated to more than 90 days
+      - alert: ReservedMemTooLow
+        expr: sum(label_join(container_memory_usage_bytes{namespace!="kube-system", namespace!="ingress-nginx"}, "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) > 1.5
+        for: 1m
+        labels:
+          severity: notify
+          frequency: low
+        annotations:
+          summary: Reserved memory is too low
+          description: At least one Pod uses much more memory than it reserved
+      - alert: ReservedMemTooHigh
+        expr: sum(label_join(container_memory_usage_bytes{namespace!="kube-system", namespace!="ingress-nginx"}, "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) < 0.5 and sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) > 5.25e+06
+        for: 6m
+        labels:
+          severity: notify
+          frequency: low
+        annotations:
+          summary: Reserved memory is too high
+          description: At least one Pod uses much less memory than it reserved
+alertmanagerFiles:
+  alertmanager.yml:
+    global: {}
+    route:
+      group_wait: 10s
+      group_interval: 5m
+      receiver: slack
+      repeat_interval: 3h
+      routes:
+      - receiver: slack
+        repeat_interval: 5d
+        match:
+          severity: notify
+          frequency: low
+    receivers:
+    - name: slack
+      slack_configs:
+      - api_url: "https://hooks.slack.com/services/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"
+        send_resolved: true
+        title: "{{ .CommonAnnotations.summary }}"
+        text: "{{ .CommonAnnotations.description }}"
+        title_link: http://my-prometheus.com/alerts
